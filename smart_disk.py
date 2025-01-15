@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import argparse
 
 def get_disk_usage(path):
     """Get disk usage percentage for a specified path."""
@@ -16,12 +17,8 @@ def predict_disk_fill(usage_percent, usage_delta, check_interval):
     time_to_fill = ((100 - usage_percent) / usage_delta) * check_interval
     return f"{time_to_fill:.2f} hours"
 
-def check_disk_usage():
+def check_disk_usage(path, warning_threshold):
     """Check the disk usage and print the status based on thresholds."""
-    path = "/"  # You can modify this to monitor a different path
-    warning_threshold = 85  # Warning threshold in percentage
-    critical_threshold = 95  # Critical threshold in percentage
-
     # Get disk usage percentage
     usage_percent = get_disk_usage(path)
 
@@ -36,7 +33,7 @@ def check_disk_usage():
     if usage_percent < warning_threshold:
         print(f"OK - {usage_percent}% of disk space used. Estimated time to full: {fill_prediction}")
         sys.exit(0)
-    elif usage_percent < critical_threshold:
+    elif usage_percent < 95:
         print(f"WARNING - {usage_percent}% of disk space used. Estimated time to full: {fill_prediction}")
         sys.exit(1)
     else:
@@ -44,4 +41,9 @@ def check_disk_usage():
         sys.exit(2)
 
 if __name__ == "__main__":
-    check_disk_usage()
+    parser = argparse.ArgumentParser(description="Disk Usage Monitor")
+    parser.add_argument("-p", "--path", type=str, default="/", help="Path to monitor (default: /)")
+    parser.add_argument("-w", "--warning", type=int, default=85, help="Warning threshold percentage (default: 85)")
+
+    args = parser.parse_args()
+    check_disk_usage(args.path, args.warning)
