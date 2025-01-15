@@ -1,62 +1,47 @@
+#!/usr/bin/env python3
 import os
-import psutil
-import argparse
-from datetime import datetime, timedelta
+import sys
 
-# Function to calculate disk usage
-def check_disk_usage(path):
-    usage = psutil.disk_usage(path)
-    return {
-        "total": usage.total,
-        "used": usage.used,
-        "free": usage.free,
-        "percent": usage.percent
-    }
+def get_disk_usage(path):
+    """Get disk usage percentage for a specified path."""
+    usage = os.popen(f"df -h {path} | grep -v Filesystem | awk '{{print $5}}'").readline().strip()
+    usage_percent = int(usage.replace('%', ''))
+    return usage_percent
 
-# Function to forecast when disk will fill up
 def predict_disk_fill(usage_percent, usage_delta, check_interval):
+    """Predict when the disk will fill up based on current usage growth rate."""
     if usage_delta <= 0:
         return "Not growing"
 
     time_to_fill = ((100 - usage_percent) / usage_delta) * check_interval
-    return str(timedelta(hours=time_to_fill))
+    return f"{time_to_fill:.2f} hours"
 
-# Main function
-def main():
-    parser = argparse.ArgumentParser(description="Smart Disk Monitor Plugin")
-    parser.add_argument("-p", "--path", required=True, help="Path to monitor (e.g., / or C:\\)")
-    parser.add_argument("-w", "--warning", type=int, required=True, help="Warning threshold for disk usage (%)")
-    parser.add_argument("-c", "--critical", type=int, required=True, help="Critical threshold for disk usage (%)")
-    parser.add_argument("-i", "--interval", type=int, default=24, help="Check interval in hours for prediction")
+def check_disk_usage():
+    """Check the disk usage and print the status based on thresholds."""
+    path = "/"  # You can modify this to monitor a different path
+    warning_threshold = 85  # Warning threshold in percentage
+    critical_threshold = 95  # Critical threshold in percentage
 
-    args = parser.parse_args()
+    # Get disk usage percentage
+    usage_percent = get_disk_usage(path)
 
-    # Get disk usage data
-    disk_data = check_disk_usage(args.path)
-
-    # Check for warning/critical thresholds
-    status = "OK"
-    if disk_data["percent"] >= args.critical:
-        status = "CRITICAL"
-    elif disk_data["percent"] >= args.warning:
-        status = "WARNING"
-
-    # Calculate usage delta (mock data for now, replace with historical data)
-    usage_delta = 0.5  # Assume a mock growth rate of 0.5% per hour
+    # Simulate a usage delta for prediction (replace with real data if available)
+    usage_delta = 0.5  # Mock growth rate in percentage per hour
+    check_interval = 1  # Mock check interval in hours
 
     # Predict time to fill
-    fill_prediction = predict_disk_fill(disk_data["percent"], usage_delta, args.interval)
+    fill_prediction = predict_disk_fill(usage_percent, usage_delta, check_interval)
 
-    # Output result
-    print(f"{status} - Disk usage at {disk_data['percent']}% | Total: {disk_data['total'] / (1024 ** 3):.2f}GB, Used: {disk_data['used'] / (1024 ** 3):.2f}GB, Free: {disk_data['free'] / (1024 ** 3):.2f}GB. Estimated time to full: {fill_prediction}")
-
-    # Exit codes for Nagios
-    if status == "CRITICAL":
-        exit(2)
-    elif status == "WARNING":
-        exit(1)
+    # Determine status
+    if usage_percent < warning_threshold:
+        print(f"OK - {usage_percent}% of disk space used. Estimated time to full: {fill_prediction}")
+        sys.exit(0)
+    elif usage_percent < critical_threshold:
+        print(f"WARNING - {usage_percent}% of disk space used. Estimated time to full: {fill_prediction}")
+        sys.exit(1)
     else:
-        exit(0)
+        print(f"CRITICAL - {usage_percent}% of disk space used. Estimated time to full: {fill_prediction}")
+        sys.exit(2)
 
 if __name__ == "__main__":
-    main()
+    check_disk_usage()
